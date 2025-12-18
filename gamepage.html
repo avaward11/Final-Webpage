@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Blue Wordle</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #e6f2ff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 { color: #003366; }
+
+  .board {
+    display: grid;
+    grid-template-rows: repeat(6, 50px);
+    gap: 6px;
+    margin: 20px 0;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(5, 50px);
+    gap: 6px;
+  }
+  .cell {
+    border: 2px solid #003366;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+  .correct { background: #003f7f; color: white; }
+  .present { background: #4da3ff; color: white; }
+  .absent { background: #cce0ff; color: #003366; }
+
+  .keyboard {
+    display: grid;
+    grid-template-columns: repeat(10, 40px);
+    gap: 5px;
+    margin-bottom: 15px;
+  }
+  .key {
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    background: #99c2ff;
+  }
+  .key.correct { background: #003f7f; color: white; }
+  .key.present { background: #4da3ff; color: white; }
+  .key.absent { background: #cce0ff; color: #003366; }
+
+  button.control {
+    padding: 10px 20px;
+    margin: 10px;
+    border-radius: 8px;
+    border: none;
+    background: #003f7f;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  .info {
+    max-width: 500px;
+    text-align: center;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<h1>Blue Wordle</h1>
+
+<div class="board" id="board"></div>
+<div class="keyboard" id="keyboard"></div>
+
+<button class="control" onclick="newGame()">New Game</button>
+
+<div class="info">
+  <p><strong>Used:</strong> <span id="used"></span></p>
+  <p><strong>In Word:</strong> <span id="inWord"></span></p>
+  <p><strong>Correct Place:</strong> <span id="correctPlace"></span></p>
+  <p><strong>Possible:</strong> <span id="possible"></span></p>
+</div>
+
+<script>
+const WORDS = ["APPLE","CRANE","BRAVE","DELTA","ELITE","STONE","PLANT","MUSIC","WATER"];
+const boardEl = document.getElementById("board");
+const keyboardEl = document.getElementById("keyboard");
+
+let answer, row, col, gameOver;
+let used, inWord, correctPlace, possible;
+
+function setupBoard() {
+  boardEl.innerHTML = "";
+  for (let i = 0; i < 6; i++) {
+    const r = document.createElement("div");
+    r.className = "row";
+    for (let j = 0; j < 5; j++) {
+      const c = document.createElement("div");
+      c.className = "cell";
+      r.appendChild(c);
+    }
+    boardEl.appendChild(r);
+  }
+}
+
+function setupKeyboard() {
+  keyboardEl.innerHTML = "";
+  const keys = "QWERTYUIOPASDFGHJKLZXCVBNM";
+  for (const k of keys) {
+    const b = document.createElement("button");
+    b.className = "key";
+    b.textContent = k;
+    b.onclick = () => handleKey(k);
+    keyboardEl.appendChild(b);
+  }
+}
+
+function newGame() {
+  answer = WORDS[Math.floor(Math.random() * WORDS.length)];
+  row = 0;
+  col = 0;
+  gameOver = false;
+
+  used = new Set();
+  inWord = new Set();
+  correctPlace = new Set();
+  possible = new Set("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""));
+
+  setupBoard();
+  setupKeyboard();
+  updateInfo();
+}
+
+function handleKey(key) {
+  if (gameOver) return;
+  const currentRow = boardEl.children[row];
+
+  if (key === "BACKSPACE") {
+    if (col > 0) {
+      col--;
+      currentRow.children[col].textContent = "";
+    }
+  } else if (key === "ENTER") {
+    submitGuess();
+  } else if (col < 5) {
+    currentRow.children[col].textContent = key;
+    col++;
+  }
+}
+
+function submitGuess() {
+  const currentRow = boardEl.children[row];
+  let guess = "";
+  for (let i = 0; i < 5; i++) guess += currentRow.children[i].textContent;
+  if (guess.length < 5) return;
+
+  for (let i = 0; i < 5; i++) {
+    const cell = currentRow.children[i];
+    const letter = cell.textContent;
+    used.add(letter);
+
+    const keyBtn = [...keyboardEl.children].find(b => b.textContent === letter);
+
+    if (answer[i] === letter) {
+      cell.classList.add("correct");
+      keyBtn.className = "key correct";
+      correctPlace.add(letter);
+      inWord.add(letter);
+    } else if (answer.includes(letter)) {
+      cell.classList.add("present");
+      if (!keyBtn.classList.contains("correct")) keyBtn.className = "key present";
+      inWord.add(letter);
+    } else {
+      cell.classList.add("absent");
+      keyBtn.className = "key absent";
+      possible.delete(letter);
+    }
+  }
+
+  updateInfo();
+
+  if (guess === answer) {
+    setTimeout(() => alert("You won!"), 100);
+    gameOver = true;
+  } else if (++row === 6) {
+    setTimeout(() => alert("Game over! Word was " + answer), 100);
+    gameOver = true;
+  }
+  col = 0;
+}
+
+function updateInfo() {
+  usedSpan.textContent = [...used].join(", ");
+  inWordSpan.textContent = [...inWord].join(", ");
+  correctPlaceSpan.textContent = [...correctPlace].join(", ");
+  possibleSpan.textContent = [...possible].join("");
+}
+
+const usedSpan = document.getElementById("used");
+const inWordSpan = document.getElementById("inWord");
+const correctPlaceSpan = document.getElementById("correctPlace");
+const possibleSpan = document.getElementById("possible");
+
+document.addEventListener("keydown", e => {
+  const k = e.key.toUpperCase();
+  if (/^[A-Z]$/.test(k)) handleKey(k);
+  if (k === "ENTER") handleKey("ENTER");
+  if (k === "BACKSPACE") handleKey("BACKSPACE");
+});
+
+newGame();
+</script>
+</body>
+</html>
